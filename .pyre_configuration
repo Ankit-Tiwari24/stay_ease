@@ -1,0 +1,9 @@
+{
+  "source_directories": [
+    "hotel_project"
+  ],
+  "search_path": [
+    "venv/Lib/site-packages",
+    "hotel_project/venv/Lib/site-packages"
+  ]
+}
