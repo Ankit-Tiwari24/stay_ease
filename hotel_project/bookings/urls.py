@@ -1,6 +1,12 @@
-from django.urls import path
-from .views import process_booking
+from django.urls import path, include  # type: ignore
+from rest_framework.routers import DefaultRouter  # type: ignore
+from .views import BookingViewSet, SendPaymentOTPView, VerifyPaymentOTPView  # type: ignore
+
+router = DefaultRouter()
+router.register(r'', BookingViewSet, basename='booking')
 
 urlpatterns = [
-    path('process_booking/', process_booking, name='process_booking'),
+    path('send-payment-otp/', SendPaymentOTPView.as_view(), name='send-payment-otp'),
+    path('verify-payment-otp/', VerifyPaymentOTPView.as_view(), name='verify-payment-otp'),
+    path('', include(router.urls)),
 ]

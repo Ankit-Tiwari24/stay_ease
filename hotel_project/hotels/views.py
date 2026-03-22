@@ -1,12 +1,11 @@
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from .models import Hotel, RoomType, Room
-from .serializers import HotelSerializer, RoomTypeSerializer, RoomSerializer
+from rest_framework import viewsets, permissions
+from .models import Hotel, Review
+from .serializers import HotelSerializer, ReviewSerializer
 
 class HotelViewSet(viewsets.ModelViewSet):
     queryset = Hotel.objects.all()
     serializer_class = HotelSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     
     def get_queryset(self):
         queryset = Hotel.objects.all()
@@ -15,19 +14,14 @@ class HotelViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(location__icontains=location)
         return queryset
 
-class RoomTypeViewSet(viewsets.ModelViewSet):
-    queryset = RoomType.objects.all()
-    serializer_class = RoomTypeSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-class RoomViewSet(viewsets.ModelViewSet):
-    queryset = Room.objects.all()
-    serializer_class = RoomSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+class ReviewViewSet(viewsets.ModelViewSet):
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
     
-    def get_queryset(self):
-        queryset = Room.objects.all()
-        hotel_id = self.request.query_params.get('hotel', None)
-        if hotel_id:
-            queryset = queryset.filter(hotel_id=hotel_id)
-        return queryset
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

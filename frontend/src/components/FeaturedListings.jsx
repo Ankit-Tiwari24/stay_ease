@@ -1,94 +1,101 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, MapPin } from 'lucide-react';
-
-const dummyListings = [
-  {
-    id: 1,
-    title: "Oceanview Villa Retreat",
-    location: "Maldives",
-    price: "₹450 / night",
-    rating: 4.9,
-    reviews: 128,
-    image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop"
-  },
-  {
-    id: 2,
-    title: "Alpine Mountain Chalet",
-    location: "Swiss Alps",
-    price: "₹320 / night",
-    rating: 4.8,
-    reviews: 95,
-    image: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2070&auto=format&fit=crop"
-  },
-  {
-    id: 3,
-    title: "Luxury City Penthouse",
-    location: "New York City",
-    price: "₹600 / night",
-    rating: 4.9,
-    reviews: 210,
-    image: "https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=2070&auto=format&fit=crop"
-  },
-  {
-    id: 4,
-    title: "Eco Jungle Treehouse",
-    location: "Costa Rica",
-    price: "₹210 / night",
-    rating: 4.7,
-    reviews: 156,
-    image: "https://images.unsplash.com/photo-1582719508461-905c673771fd?q=80&w=2070&auto=format&fit=crop"
-  }
-];
+import { Star, MapPin, Loader2, Compass } from 'lucide-react';
 
 const FeaturedListings = () => {
+  const [listings, setListings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('http://127.0.0.1:8000/api/hotels/')
+      .then(res => res.json())
+      .then(data => {
+        // Sort by star_rating and take first 4
+        const featured = data
+          .sort((a, b) => (b.star_rating || 0) - (a.star_rating || 0))
+          .slice(0, 4);
+        setListings(featured);
+      })
+      .catch(err => console.error("Error fetching featured listings:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return (
+    <div className="py-24 flex flex-col items-center justify-center gap-6 bg-white border-y border-gray-50">
+      <div className="relative">
+        <Loader2 className="h-14 w-14 text-blue-600 animate-spin" strokeWidth={1.5} />
+        <div className="absolute inset-0 flex items-center justify-center">
+           <Compass className="h-6 w-6 text-blue-400 opacity-50" />
+        </div>
+      </div>
+      <p className="text-gray-400 font-extrabold uppercase tracking-[0.2em] text-[10px]">Curating Exclusive Hideaways...</p>
+    </div>
+  );
+
   return (
-    <section className="py-16 bg-gray-50">
+    <section className="py-24 bg-gray-50/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-end mb-10">
-          <div>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight">Featured Destinations</h2>
-            <p className="text-lg text-gray-600 max-w-2xl">Discover some of the most beautiful and highly-rated places manually picked for your perfect getaway.</p>
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
+          <div className="space-y-4">
+             <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-blue-100/50 shadow-sm">
+                <Compass size={14} strokeWidth={2.5} /> Expert Recommendations
+             </div>
+             <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter leading-none">Featured Stays</h2>
+             <p className="text-gray-500 text-lg font-medium max-w-xl leading-relaxed">Experience hospitality at its finest with our highest-rated properties, manually vetted for excellence.</p>
           </div>
-          <Link to="/booking" className="hidden sm:block text-blue-600 font-semibold hover:text-blue-800 transition-colors group">
-            View all properties 
-            <span className="inline-block transform transition-transform group-hover:translate-x-1 ml-1">&rarr;</span>
+          <Link to="/booking" className="text-gray-400 hover:text-blue-600 font-black text-xs uppercase tracking-[0.25em] transition-all flex items-center gap-3 group bg-white px-8 py-4 rounded-3xl border border-gray-100 shadow-xl shadow-gray-200/40">
+            View Archive 
+            <span className="transform transition-transform group-hover:translate-x-1.5 duration-300">→</span>
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {dummyListings.map(listing => (
-            <div key={listing.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-pointer border border-gray-100 flex flex-col">
-              <div className="relative aspect-[4/3] overflow-hidden">
-                <img 
-                  src={listing.image} 
-                  alt={listing.title} 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center shadow-sm">
-                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                  <span className="ml-1 text-sm font-bold text-gray-900">{listing.rating}</span>
-                </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+          {listings.map(listing => (
+            <Link to={`/book/${listing.id}`} key={listing.id} className="bg-white rounded-[40px] overflow-hidden shadow-2xl shadow-gray-200/60 hover:shadow-blue-200/50 transition-all duration-700 group flex flex-col border border-gray-50 hover:-translate-y-3 relative">
+              <div className="absolute top-6 left-6 z-10">
+                 <div className="bg-white/80 backdrop-blur-md px-4 py-2 rounded-2xl flex items-center shadow-lg border border-white/40">
+                    <Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />
+                    <span className="ml-2 text-xs font-black text-gray-900">{listing.star_rating}</span>
+                 </div>
               </div>
               
-              <div className="p-5 flex flex-col flex-1">
-                <div className="flex items-center text-sm text-gray-500 mb-2">
-                  <MapPin className="w-4 h-4 mr-1 text-blue-500" />
+              <div className="relative aspect-[16/11] overflow-hidden">
+                <img 
+                  src={listing.image ? (listing.image.startsWith('http') ? listing.image : `http://127.0.0.1:8000${listing.image}`) : "/default-hotel.jpg"} 
+                  alt={listing.name} 
+                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-900/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              </div>
+              
+              <div className="p-8 flex flex-col flex-1 relative">
+                <div className="flex items-center text-[10px] font-black text-gray-300 mb-4 uppercase tracking-[0.2em]">
+                  <MapPin className="w-3.5 h-3.5 mr-2 text-blue-500" strokeWidth={2.5} />
                   {listing.location}
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors line-clamp-1">{listing.title}</h3>
+                <h3 className="text-xl font-black text-gray-900 mb-5 group-hover:text-blue-600 transition-colors line-clamp-1 leading-tight tracking-tight">{listing.name}</h3>
                 
-                <div className="mt-auto pt-4 flex items-center justify-between border-t border-gray-100">
-                  <div className="font-bold text-lg text-gray-900">
-                    {listing.price.split(' ')[0]} <span className="text-sm font-normal text-gray-500">/ night</span>
+                <div className="mt-auto pt-8 flex items-center justify-between border-t border-gray-50">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.15em] leading-none mb-1">Starting from</span>
+                    <div className="text-2xl font-black text-gray-900 tracking-tighter">
+                      ₹{listing.price} <span className="text-[10px] font-bold text-gray-400 tracking-normal ml-0.5">/ night</span>
+                    </div>
                   </div>
-                  <Link to={`/book/${listing.id}`} className="bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm">
-                    Book Now
-                  </Link>
+                   <div className="w-12 h-12 bg-gray-50 text-gray-900 rounded-[20px] flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all transform group-hover:rotate-45 shadow-sm">
+                      <span className="text-2xl font-bold leading-none mt-[-2px]">→</span>
+                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
+          
+          {listings.length === 0 && !loading && (
+             <div className="col-span-full py-24 text-center bg-white rounded-[50px] border border-dashed border-gray-200 flex flex-col items-center justify-center gap-3">
+                <Compass className="h-10 w-10 text-gray-200" />
+                <p className="text-gray-300 font-black uppercase tracking-[0.3em] text-[10px]">Discoveries coming soon</p>
+             </div>
+          )}
         </div>
       </div>
     </section>

@@ -11,35 +11,62 @@ const Login = () => {
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
+  const loginRequest = async (retries = 3) => {
+    while (retries > 0) {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/auth/login/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: formData.email,
+            password: formData.password
+          }),
+        });
+
+        if (!response.ok) {
+          let errMsg = 'Invalid email or password.';
+          try {
+            const errorData = await response.json();
+            errMsg = errorData.detail || errorData.error || errMsg;
+          } catch (e) {
+            // Ignore if response is not JSON
+          }
+          throw new Error(errMsg);
+        }
+
+        return await response.json();
+      } catch (err) {
+        if (err.message === 'Failed to fetch' && retries > 1) {
+          retries--;
+          await new Promise(res => setTimeout(res, 1000));
+        } else {
+          throw err;
+        }
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/auth/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: formData.email,
-          password: formData.password
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Invalid email or password.');
-      }
-
-      const data = await response.json();
+      const data = await loginRequest();
+      
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
       
       // Force page reload to trigger root component / navbar state update
       window.location.href = '/';
     } catch (err) {
-      setError(err.message);
+      if (err.message === 'Failed to fetch') {
+        setError('Unable to reach the server. Please check your internet connection and ensure the backend is running.');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }

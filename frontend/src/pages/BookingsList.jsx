@@ -3,26 +3,28 @@ import { useLocation } from 'react-router-dom';
 import HotelCard from '../components/HotelCard';
 import { Search, MapPin, DollarSign, Calendar } from 'lucide-react';
 
-const allHotels = [
-  { id: 1, name: "Oceanview Villa Retreat", location: "Maldives", price: 4500, starRating: 4.9, available: true, imageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop" },
-  { id: 2, name: "Alpine Mountain Chalet", location: "Swiss Alps", price: 3200, starRating: 4.8, available: true, imageUrl: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2070&auto=format&fit=crop" },
-  { id: 3, name: "Luxury City Penthouse", location: "New York, USA", price: 3600, starRating: 4.9, available: false, imageUrl: "https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=2070&auto=format&fit=crop" },
-  { id: 4, name: "Eco Jungle Treehouse", location: "Costa Rica", price: 2100, starRating: 4.7, available: true, imageUrl: "https://images.unsplash.com/photo-1582719508461-905c673771fd?q=80&w=2070&auto=format&fit=crop" },
-  { id: 5, name: "Santorini Cliff Suite", location: "Greece", price: 1550, starRating: 5.0, available: true, imageUrl: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021&auto=format&fit=crop" },
-  { id: 6, name: "Kyoto Traditional Ryokan", location: "Kyoto, Japan", price: 3800, starRating: 4.9, available: false, imageUrl: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=2070&auto=format&fit=crop" },
-  { id: 7, name: "Taj Mahal Palace View", location: "Mumbai, India", price: 2500, starRating: 4.8, available: true, imageUrl: "https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=1974&auto=format&fit=crop" },
-  { id: 8, name: "Parisian Boutique Hotel", location: "Paris, France", price: 4200, starRating: 4.7, available: true, imageUrl: "https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?q=80&w=2070&auto=format&fit=crop" },
-  { id: 9, name: "Dubai Desert Resort", location: "Dubai, UAE", price: 2800, starRating: 5.0, available: true, imageUrl: "https://images.unsplash.com/photo-1580237072617-771c3ecc4a24?q=80&w=2069&auto=format&fit=crop" },
-  { id: 10, name: "Sydney Harbour Suites", location: "Sydney, Australia", price: 3500, starRating: 4.6, available: true, imageUrl: "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?q=80&w=2070&auto=format&fit=crop" },
-  { id: 11, name: "Bali Tropical Resort", location: "Bali, Indonesia", price: 1800, starRating: 4.5, available: false, imageUrl: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=2070&auto=format&fit=crop" },
-  { id: 12, name: "London Historic Inn", location: "London, UK", price: 2900, starRating: 4.4, available: true, imageUrl: "https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?q=80&w=2070&auto=format&fit=crop" }
-];
-
 const BookingsList = () => {
   const routerLocation = useLocation();
+  const [allHotels, setAllHotels] = useState([]);
   const [locationFilter, setLocationFilter] = useState('');
   const [maxPrice, setMaxPrice] = useState(10000);
   const [onlyAvailable, setOnlyAvailable] = useState(false);
+
+  useEffect(() => {
+    fetch('http://127.0.0.1:8000/api/hotels/')
+      .then(res => res.json())
+      .then(data => {
+        // Map Django model values to match existing frontend state
+        const formattedHotels = data.map(h => ({
+          ...h,
+          starRating: h.star_rating,
+          imageUrl: h.image 
+            ? (h.image.startsWith('http') ? h.image : `http://127.0.0.1:8000${h.image}`) 
+            : "/default-hotel.jpg"
+        }));
+        setAllHotels(formattedHotels);
+      });
+  }, []);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(routerLocation.search);

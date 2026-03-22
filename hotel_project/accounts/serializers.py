@@ -1,7 +1,16 @@
-from rest_framework import serializers
-from .models import CustomUser
+from rest_framework import serializers  # type: ignore
+from .models import CustomUser, ContactMessage, OTP  # type: ignore
 
 import re
+
+class OTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    purpose = serializers.ChoiceField(choices=OTP.PURPOSE_CHOICES)
+
+class OTPVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp_code = serializers.CharField(max_length=6)
+    purpose = serializers.ChoiceField(choices=OTP.PURPOSE_CHOICES)
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -38,3 +47,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ('id', 'username', 'email', 'role', 'phone_number', 'profile_picture', 'first_name', 'last_name')
         read_only_fields = ('id', 'username', 'email', 'role')
+
+class ContactMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactMessage
+        fields = '__all__'

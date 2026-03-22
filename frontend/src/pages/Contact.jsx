@@ -2,9 +2,34 @@ import React from 'react';
 import { Mail, Phone, MapPin } from 'lucide-react';
 
 const Contact = () => {
-  const handleSubmit = (e) => {
+  const [formData, setFormData] = React.useState({ name: '', email: '', message: '' });
+  const [status, setStatus] = React.useState('');
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert("Message Sent!");
+    setStatus('Sending...');
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/auth/contact/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        setStatus('Message Sent Successfully!');
+        setFormData({ name: '', email: '', message: '' });
+      } else {
+        setStatus('Failed to send message.');
+      }
+    } catch (error) {
+      setStatus('An error occurred.');
+    }
   };
 
   return (
@@ -39,19 +64,24 @@ const Contact = () => {
             {/* Contact Form */}
             <div className="p-10">
               <form onSubmit={handleSubmit} className="space-y-6">
+                {status && (
+                  <div className={`p-4 rounded-lg text-white font-bold ${status.includes('Successfully') ? 'bg-green-500' : status.includes('Sending') ? 'bg-blue-500' : 'bg-red-500'}`}>
+                    {status}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Your Name</label>
-                  <input type="text" required className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="John Doe" />
+                  <input type="text" name="name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="John Doe" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Your Email</label>
-                  <input type="email" required className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="john@example.com" />
+                  <input type="email" name="email" value={formData.email} onChange={handleChange} required className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="john@example.com" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Message</label>
-                  <textarea rows="4" required className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="How can we help?"></textarea>
+                  <textarea rows="4" name="message" value={formData.message} onChange={handleChange} required className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="How can we help?"></textarea>
                 </div>
-                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+                <button type="submit" disabled={status === 'Sending...'} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 disabled:opacity-50">
                   Send Message
                 </button>
               </form>

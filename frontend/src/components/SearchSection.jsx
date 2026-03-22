@@ -5,7 +5,18 @@ import { MapPin, Calendar, Users, Search } from 'lucide-react';
 const SearchSection = () => {
   const [location, setLocation] = useState('');
   const [dates, setDates] = useState('');
+  const [cities, setCities] = useState([]);
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    fetch('http://127.0.0.1:8000/api/hotels/')
+      .then(res => res.json())
+      .then(data => {
+        const uniqueCities = [...new Set(data.map(h => h.location))];
+        setCities(uniqueCities);
+      })
+      .catch(() => setCities(["Maldives", "Swiss Alps", "New York", "Mumbai"]));
+  }, []);
 
   const handleSearch = () => {
     if (location.trim()) {
@@ -32,18 +43,9 @@ const SearchSection = () => {
                 className="w-full bg-transparent border-none p-0 text-gray-900 focus:ring-0 text-sm font-medium mt-1 outline-none cursor-pointer"
               >
                 <option value="" disabled>Where are you going?</option>
-                <option value="Maldives">Maldives</option>
-                <option value="Swiss Alps">Swiss Alps</option>
-                <option value="New York">New York</option>
-                <option value="Costa Rica">Costa Rica</option>
-                <option value="Greece">Greece</option>
-                <option value="Kyoto">Kyoto, Japan</option>
-                <option value="Mumbai">Mumbai, India</option>
-                <option value="Paris">Paris, France</option>
-                <option value="Dubai">Dubai, UAE</option>
-                <option value="Sydney">Sydney, Australia</option>
-                <option value="Bali">Bali, Indonesia</option>
-                <option value="London">London, UK</option>
+                {cities.map(city => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
               </select>
             </div>
           </div>

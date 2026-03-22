@@ -4,25 +4,20 @@ class Hotel(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     location = models.CharField(max_length=200)
-    star_rating = models.IntegerField(default=3)
-    image_url = models.URLField(blank=True, null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=2000)
+    star_rating = models.DecimalField(max_digits=3, decimal_places=1, default=4.0)
+    image = models.ImageField(upload_to='hotels/', null=True, blank=True)
+    available = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name
 
-class RoomType(models.Model):
-    name = models.CharField(max_length=100) # e.g., Deluxe, Suite, Standard
-    base_price = models.DecimalField(max_digits=10, decimal_places=2)
-    description = models.TextField(blank=True, null=True)
-    
-    def __str__(self):
-        return self.name
-
-class Room(models.Model):
-    hotel = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='rooms')
-    room_type = models.ForeignKey(RoomType, on_delete=models.CASCADE)
-    room_number = models.CharField(max_length=50)
-    is_available = models.BooleanField(default=True)
+class Review(models.Model):
+    hotel = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='reviews')
+    user = models.ForeignKey('accounts.CustomUser', on_delete=models.CASCADE)
+    rating = models.IntegerField(default=5)
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.hotel.name} - {self.room_type.name} ({self.room_number})"
+        return f"{self.user.username}'s review for {self.hotel.name}"

@@ -1,13 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, MapPin, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
-    const savedBookings = JSON.parse(localStorage.getItem('my_bookings') || '[]');
-    setBookings(savedBookings.reverse()); // Show newest first
+    const fetchBookings = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/bookings/', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setBookings(data);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    if (localStorage.getItem('access_token')) {
+      fetchBookings();
+    }
   }, []);
 
   return (
@@ -28,36 +45,36 @@ const MyBookings = () => {
                 className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col sm:flex-row gap-6 hover:shadow-md transition-shadow"
               >
                 <div className="w-full sm:w-48 h-32 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 relative">
-                  <img src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=2070&auto=format&fit=crop" alt="Property" className="w-full h-full object-cover opacity-90" />
+                  <img src={booking.hotel_details?.image ? (booking.hotel_details.image.startsWith('http') ? booking.hotel_details.image : `http://127.0.0.1:8000${booking.hotel_details.image}`) : "/default-hotel.jpg"} alt="Property" className="w-full h-full object-cover opacity-90" />
                   <div className="absolute inset-0 bg-gradient-to-t from-gray-900/50 to-transparent"></div>
                   <div className="absolute bottom-3 left-3 flex items-center text-white backdrop-blur-md bg-white/10 px-2 py-1 rounded-md text-xs font-bold border border-white/20">
-                    Confirmed
+                    {booking.status}
                   </div>
                 </div>
 
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-900">{booking.hotelName}</h3>
+                  <h3 className="text-xl font-bold text-gray-900">{booking.hotel_details?.name || "Hotel"}</h3>
                   <div className="mt-2 text-sm text-gray-500 flex items-center">
-                    <MapPin className="w-4 h-4 mr-1 text-blue-500" /> StayEase Selected Location
+                    <MapPin className="w-4 h-4 mr-1 text-blue-500" /> {booking.hotel_details?.location || "StayEase Selected Location"}
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-4 border-t border-gray-50 pt-4">
                     <div>
                       <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Check-in</p>
                       <p className="font-bold text-gray-800 flex items-center">
-                        <Calendar className="w-4 h-4 mr-1.5 text-blue-600" /> {booking.checkIn}
+                        <Calendar className="w-4 h-4 mr-1.5 text-blue-600" /> {booking.check_in}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Check-out</p>
                       <p className="font-bold text-gray-800 flex items-center">
-                        <Calendar className="w-4 h-4 mr-1.5 text-blue-600" /> {booking.checkOut}
+                        <Calendar className="w-4 h-4 mr-1.5 text-blue-600" /> {booking.check_out}
                       </p>
                     </div>
                   </div>
                   <div className="mt-4 flex items-center text-xs text-gray-400">
                     <Clock className="w-3 h-3 mr-1" />
-                    Booked on {new Date(booking.dateBooked).toLocaleDateString()}
+                    Booked on {new Date(booking.created_at).toLocaleDateString()}
                   </div>
                 </div>
               </motion.div>
@@ -68,7 +85,7 @@ const MyBookings = () => {
             <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-gray-900 mb-2">No bookings yet</h3>
             <p className="text-gray-500 mb-6">You haven't made any reservations. Discover amazing properties to stay at!</p>
-            <a href="/booking" className="inline-block bg-blue-600 text-white font-bold px-6 py-3 rounded-full hover:bg-blue-700 transition">Explore Properties</a>
+            <Link to="/booking" className="inline-block bg-blue-600 text-white font-bold px-6 py-3 rounded-full hover:bg-blue-700 transition">Explore Properties</Link>
           </div>
         )}
       </div>

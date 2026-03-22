@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CreditCard, Lock, CheckCircle } from 'lucide-react';
+import OTPModal from '../components/OTPModal';
 
 const BookingPage = () => {
   const { hotelId } = useParams();
   const navigate = useNavigate();
-  const [step, setStep] = useState('booking'); // 'booking' | 'payment' | 'success'
+  const [step, setStep] = useState('booking');
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    checkIn: '',
-    checkOut: '',
-  });
+  const [formData, setFormData] = useState({ name: '', email: '', checkIn: '', checkOut: '' });
+  const [paymentData, setPaymentData] = useState({ cardHolderName: '', cardNumber: '', expiryDate: '', cvv: '' });
+  const [paymentErrors, setPaymentErrors] = useState({});
+  const [isOTPModalOpen, setIsOTPModalOpen] = useState(false);
+  const [otpError, setOtpError] = useState(null);
+  const [otpLoading, setOtpLoading] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem('access_token')) {
@@ -21,11 +22,17 @@ const BookingPage = () => {
     }
   }, [navigate]);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handlePaymentChange = (e) => setPaymentData({ ...paymentData, [e.target.name]: e.target.value });
+
+  const validatePayment = () => {
+    const errors = {};
+    if (!/^[A-Za-z\s]+$/.test(paymentData.cardHolderName)) errors.cardHolderName = "Alphabets only";
+    if (!/^\d{16}$/.test(paymentData.cardNumber.replace(/\s/g, ''))) errors.cardNumber = "Exactly 16 digits";
+    if (!/^(0[1-9]|1[0-2])\/(\d{2}|\d{4})$/.test(paymentData.expiryDate)) errors.expiryDate = "Format MM/YY";
+    if (!/^\d{3,4}$/.test(paymentData.cvv)) errors.cvv = "3-4 digits";
+    setPaymentErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleBookingSubmit = (e) => {
@@ -34,49 +41,98 @@ const BookingPage = () => {
   };
 
   const handlePaymentSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    if (!validatePayment()) return;
+
     setLoading(true);
-    
+
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/bookings/process_booking/', {
+      const response = await fetch('http://127.0.0.1:8000/api/bookings/send-payment-otp/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        },
+        body: JSON.stringify({ email: formData.email, purpose: 'payment' })
+      });
+
+      if (response.ok) {
+        setIsOTPModalOpen(true);
+      } else {
+        const err = await response.json();
+        alert(err.error || "Failed to send OTP.");
+      }
+    } catch (err) {
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyPayment = async (otpCode) => {
+    setOtpLoading(true);
+    setOtpError(null);
+
+    try {
+      // 1. Verify OTP first
+      const otpResp = await fetch('http://127.0.0.1:8000/api/bookings/verify-payment-otp/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        },
+        body: JSON.stringify({ email: formData.email, otp_code: otpCode, purpose: 'payment' })
+      });
+
+      if (!otpResp.ok) {
+        const err = await otpResp.json();
+        throw new Error(err.error || "Invalid OTP code.");
+      }
+
+      // 2. Create Booking
+      const bookingResp = await fetch('http://127.0.0.1:8000/api/bookings/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         },
         body: JSON.stringify({
-          hotel_name: `Premium Property (ID: ${hotelId})`,
+          hotel: hotelId,
           check_in: formData.checkIn,
           check_out: formData.checkOut,
-          email: formData.email
+          card_number: paymentData.cardNumber
         })
       });
 
-      if (!response.ok) {
-        throw new Error('Payment processing failed. Please try again.');
+      if (bookingResp.ok) {
+        setIsOTPModalOpen(false);
+        setStep('success');
+      } else {
+        const err = await bookingResp.json();
+        throw new Error(err.error || "Failed to create booking.");
       }
-
-      // Save to local storage
-      const newBooking = {
-        id: Date.now(),
-        hotelName: `Premium Property (ID: ${hotelId})`,
-        checkIn: formData.checkIn,
-        checkOut: formData.checkOut,
-        email: formData.email,
-        dateBooked: new Date().toISOString()
-      };
-      
-      const existingBookings = JSON.parse(localStorage.getItem('my_bookings') || '[]');
-      existingBookings.push(newBooking);
-      localStorage.setItem('my_bookings', JSON.stringify(existingBookings));
-
-      setStep('success');
     } catch (err) {
-      alert(err.message);
+      setOtpError(err.message);
     } finally {
-      setLoading(false);
+      setOtpLoading(false);
     }
   };
+
+  const handleResendPaymentOTP = async () => {
+    try {
+      await fetch('http://127.0.0.1:8000/api/bookings/send-payment-otp/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        },
+        body: JSON.stringify({ email: formData.email, purpose: 'payment' })
+      });
+    } catch (err) {
+      setOtpError("Failed to resend OTP.");
+    }
+  };
+
 
   return (
     <div className="pt-24 pb-16 min-h-screen bg-gray-50 flex flex-col justify-center">
@@ -141,27 +197,73 @@ const BookingPage = () => {
               <form onSubmit={handlePaymentSubmit} className="space-y-6 max-w-lg mx-auto bg-gray-50 p-8 rounded-xl border border-gray-200">
                 <div>
                   <label className="block text-sm font-bold text-gray-700">Cardholder Name</label>
-                  <input type="text" required placeholder="John Doe" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3 border" />
+                  <input 
+                    type="text" 
+                    name="cardHolderName" 
+                    required 
+                    placeholder="Ankit Tiwari" 
+                    className={`mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3 border ${paymentErrors.cardHolderName ? 'border-red-500' : ''}`} 
+                    value={paymentData.cardHolderName}
+                    onChange={handlePaymentChange}
+                  />
+                  {paymentErrors.cardHolderName && <p className="text-red-500 text-xs mt-1">{paymentErrors.cardHolderName}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700">Card Number</label>
-                  <input type="text" required placeholder="0000 0000 0000 0000" maxLength="19" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3 border tracking-widest text-lg font-mono" />
+                  <input 
+                    type="text" 
+                    name="cardNumber" 
+                    required 
+                    placeholder="0000 0000 0000 0000" 
+                    maxLength="19" 
+                    className={`mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3 border tracking-widest text-lg font-mono ${paymentErrors.cardNumber ? 'border-red-500' : ''}`} 
+                    value={paymentData.cardNumber}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim();
+                      setPaymentData({ ...paymentData, cardNumber: value });
+                    }}
+                  />
+                  {paymentErrors.cardNumber && <p className="text-red-500 text-xs mt-1">{paymentErrors.cardNumber}</p>}
                 </div>
                 
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-bold text-gray-700">Expiry Date</label>
-                    <input type="text" required placeholder="MM/YY" maxLength="5" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3 border text-center" />
+                    <input 
+                      type="text" 
+                      name="expiryDate" 
+                      required 
+                      placeholder="MM/YY" 
+                      maxLength="5" 
+                      className={`mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3 border text-center ${paymentErrors.expiryDate ? 'border-red-500' : ''}`} 
+                      value={paymentData.expiryDate}
+                      onChange={(e) => {
+                        let value = e.target.value.replace(/\D/g, '');
+                        if (value.length > 2) value = value.substring(0,2) + '/' + value.substring(2);
+                        setPaymentData({ ...paymentData, expiryDate: value });
+                      }}
+                    />
+                    {paymentErrors.expiryDate && <p className="text-red-500 text-xs mt-1">{paymentErrors.expiryDate}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-700">CVC</label>
-                    <input type="password" required placeholder="123" maxLength="3" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3 border text-center tracking-widest" />
+                    <label className="block text-sm font-bold text-gray-700">CVV</label>
+                    <input 
+                      type="password" 
+                      name="cvv" 
+                      required 
+                      placeholder="123" 
+                      maxLength="4" 
+                      className={`mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3 border text-center tracking-widest ${paymentErrors.cvv ? 'border-red-500' : ''}`} 
+                      value={paymentData.cvv}
+                      onChange={handlePaymentChange}
+                    />
+                    {paymentErrors.cvv && <p className="text-red-500 text-xs mt-1">{paymentErrors.cvv}</p>}
                   </div>
                 </div>
 
                 <div className="pt-6">
                   <button type="submit" disabled={loading} className="w-full flex items-center justify-center py-4 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors disabled:opacity-50">
-                    {loading ? 'Processing...' : <><Lock className="w-4 h-4 mr-2" /> Pay and Confirm Booking</>}
+                    {loading ? 'Processing...' : <><Lock className="w-4 h-4 mr-2" /> Verify and Pay</>}
                   </button>
                 </div>
               </form>
@@ -179,8 +281,17 @@ const BookingPage = () => {
             </div>
           )}
 
-        </div>
+        <OTPModal
+          isOpen={isOTPModalOpen}
+          onClose={() => setIsOTPModalOpen(false)}
+          email={formData.email}
+          onVerify={handleVerifyPayment}
+          onResend={handleResendPaymentOTP}
+          loading={otpLoading}
+          error={otpError}
+        />
       </div>
+    </div>
     </div>
   );
 };

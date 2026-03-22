@@ -1,25 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { Menu, X, Plane, User, LogOut, Settings, ChevronDown, Briefcase } from 'lucide-react';
+import { Menu, X, Plane, User, LogOut, Settings, ChevronDown, Briefcase, ShieldCheck } from 'lucide-react';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const isLoggedIn = !!localStorage.getItem('access_token');
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('access_token'));
 
   useEffect(() => {
-    if (isLoggedIn) {
+    const token = localStorage.getItem('access_token');
+    const loggedIn = !!token;
+    setIsLoggedIn(loggedIn);
+
+    if (loggedIn) {
       fetch('http://127.0.0.1:8000/api/auth/profile/', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${token}`
         }
       })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          if (res.status === 401) {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            setIsLoggedIn(false);
+          }
+          throw new Error('Not authenticated');
+        }
+        return res.json();
+      })
       .then(data => setUser(data))
       .catch(() => setUser(null));
     }
-  }, [isLoggedIn]);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
@@ -80,7 +94,7 @@ const Navbar = () => {
                 >
                   <div className="h-9 w-9 rounded-full bg-blue-600 flex items-center justify-center text-white overflow-hidden shadow-inner border border-white">
                     {user?.profile_picture ? (
-                      <img src={`http://127.0.0.1:8000${user.profile_picture}`} alt="Profile" className="h-full w-full object-cover" />
+                      <img src={user.profile_picture.startsWith('http') ? user.profile_picture : `http://127.0.0.1:8000${user.profile_picture}`} alt="Profile" className="h-full w-full object-cover" />
                     ) : (
                       <User className="h-5 w-5" />
                     )}
@@ -103,6 +117,16 @@ const Navbar = () => {
                       <Settings className="h-4 w-4" />
                       View Profile
                     </Link>
+                    {user?.role === 'manager' && (
+                      <Link 
+                        to="/admin" 
+                        onClick={() => setIsProfileOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 font-bold transition-colors"
+                      >
+                        <ShieldCheck className="h-4 w-4 text-blue-600" />
+                        Management
+                      </Link>
+                    )}
                     <button 
                       onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors mt-1"
@@ -146,7 +170,7 @@ const Navbar = () => {
               <div className="flex items-center gap-3 px-3 py-2 bg-blue-50 rounded-xl mb-4">
                 <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white overflow-hidden">
                   {user?.profile_picture ? (
-                    <img src={`http://127.0.0.1:8000${user.profile_picture}`} alt="Profile" className="h-full w-full object-cover" />
+                    <img src={user.profile_picture.startsWith('http') ? user.profile_picture : `http://127.0.0.1:8000${user.profile_picture}`} alt="Profile" className="h-full w-full object-cover" />
                   ) : (
                     <User className="h-5 w-5" />
                   )}
@@ -170,6 +194,16 @@ const Navbar = () => {
             <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
               {isLoggedIn ? (
                 <>
+                  {user?.role === 'manager' && (
+                    <Link 
+                      to="/admin" 
+                      onClick={() => setIsOpen(false)}
+                      className="w-full flex items-center justify-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full font-bold mb-2 border border-blue-100 shadow-sm transition-all shadow-blue-100"
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      Management
+                    </Link>
+                  )}
                   <Link 
                     to="/my-bookings" 
                     onClick={() => setIsOpen(false)}

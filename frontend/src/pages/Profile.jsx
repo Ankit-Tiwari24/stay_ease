@@ -19,31 +19,53 @@ const Profile = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    const fetchProfile = async () => {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        setError('Please log in to view your profile');
+        setLoading(false);
+        return;
+      }
 
-  const fetchProfile = async () => {
-    try {
-      const response = await fetch('http://127.0.0.1:8000/api/auth/profile/', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/auth/profile/', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          if (response.status === 401) {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            navigate('/login');
+          }
+          throw new Error('Failed to fetch profile. Session may have expired.');
         }
-      });
-      if (!response.ok) throw new Error('Failed to fetch profile');
-      const data = await response.json();
-      setUser(data);
-      setFormData({
-        first_name: data.first_name || '',
-        last_name: data.last_name || '',
-        phone_number: data.phone_number || '',
-        profile_picture: null
-      });
-      setLoading(false);
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
-  };
+
+        const data = await response.json();
+        setUser(data);
+        setFormData({
+          first_name: data.first_name || '',
+          last_name: data.last_name || '',
+          phone_number: data.phone_number || '',
+          profile_picture: null
+        });
+        if (data.profile_picture) {
+          const fullImgUrl = data.profile_picture.startsWith('http') 
+            ? data.profile_picture 
+            : `http://127.0.0.1:8000${data.profile_picture}`;
+          setPreviewImage(fullImgUrl);
+        }
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -131,7 +153,7 @@ const Profile = () => {
                   {previewImage ? (
                     <img src={previewImage} alt="Preview" className="h-full w-full object-cover" />
                   ) : user?.profile_picture ? (
-                    <img src={`http://127.0.0.1:8000${user.profile_picture}`} alt="Profile" className="h-full w-full object-cover" />
+                    <img src={user.profile_picture.startsWith('http') ? user.profile_picture : `http://127.0.0.1:8000${user.profile_picture}`} alt="Profile" className="h-full w-full object-cover" />
                   ) : (
                     <div className="h-full w-full flex items-center justify-center text-gray-400">
                       <User size={64} />

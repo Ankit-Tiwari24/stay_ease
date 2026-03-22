@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Check, X, ArrowRight, User, Mail, Lock, ShieldCheck } from 'lucide-react';
+import OTPModal from '../components/OTPModal';
 
 const Signup = () => {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isOTPModalOpen, setIsOTPModalOpen] = useState(false);
+  const [otpError, setOtpError] = useState(null);
+  const [otpLoading, setOtpLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -23,7 +27,7 @@ const Signup = () => {
   
   const passwordValid = hasMinLength && hasLetter && hasDigit && hasSpecialChar;
 
-  const handleSubmit = async (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
     if (!passwordValid || !passwordMatch) return;
 
@@ -31,31 +35,72 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/auth/register/', {
+      const response = await fetch('http://127.0.0.1:8000/api/auth/send-otp/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: formData.email,
-          email: formData.email,
-          password: formData.password,
-          first_name: formData.name.split(' ')[0],
-          last_name: formData.name.split(' ').slice(1).join(' '),
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, purpose: 'signup' })
       });
 
       const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.username ? 'User with this email already exists.' : 'Signup failed. Please try again.');
+         throw new Error(data.error || "Failed to send OTP. Please try again.");
       }
-
-      navigate('/login');
+      setIsOTPModalOpen(true);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifySignup = async (otpCode) => {
+    setOtpLoading(true);
+    setOtpError(null);
+
+    const nameParts = formData.name.split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(' ');
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/auth/verify-signup-otp/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          username: formData.email,
+          email: formData.email,
+          password: formData.password,
+          first_name: firstName,
+          last_name: lastName,
+          otp_code: otpCode,
+          purpose: 'signup'
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setIsOTPModalOpen(false);
+        navigate('/login');
+      } else {
+        const errorMsg = data.error || (data.user_errors ? Object.values(data.user_errors).flat()[0] : "Invalid OTP code.");
+        setOtpError(errorMsg);
+      }
+    } catch (err) {
+      setOtpError("Failed to verify OTP. Please check your connection.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setOtpError(null);
+    try {
+      await fetch('http://127.0.0.1:8000/api/auth/send-otp/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, purpose: 'signup' })
+      });
+    } catch (err) {
+      setOtpError("Failed to resend OTP.");
     }
   };
 
@@ -97,7 +142,7 @@ const Signup = () => {
 
           <div className="mt-8">
             <div className="mt-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSignup} className="space-y-6">
                 <motion.div variants={itemVariants}>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                     Full Name
@@ -241,7 +286,7 @@ const Signup = () => {
                       </svg>
                     ) : (
                       <>
-                        Sign up
+                        Sign up & Verify Email
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </>
                     )}
@@ -283,6 +328,16 @@ const Signup = () => {
           </motion.div>
         </div>
       </div>
+
+      <OTPModal
+        isOpen={isOTPModalOpen}
+        onClose={() => setIsOTPModalOpen(false)}
+        email={formData.email}
+        onVerify={handleVerifySignup}
+        onResend={handleResendOTP}
+        loading={otpLoading}
+        error={otpError}
+      />
     </div>
   );
 };
