@@ -1,8 +1,0 @@
-{
-    "python.defaultInterpreterPath": "c:\\Users\\ANKIT TIWARI\\Desktop\\project\\hotel_project\\venv\\Scripts\\python.exe",
-    "python.analysis.extraPaths": [
-        "c:\\Users\\ANKIT TIWARI\\Desktop\\project\\venv\\Lib\\site-packages",
-        "c:\\Users\\ANKIT TIWARI\\Desktop\\project\\hotel_project\\venv\\Lib\\site-packages",
-        "c:\\Users\\ANKIT TIWARI\\Desktop\\project\\hotel_project"
-    ]
-}
